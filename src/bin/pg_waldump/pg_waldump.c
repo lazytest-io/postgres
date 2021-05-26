@@ -24,6 +24,7 @@
 #include "common/logging.h"
 #include "getopt_long.h"
 #include "rmgrdesc.h"
+#include "replication/message.h"
 
 static const char *progname;
 
@@ -553,6 +554,16 @@ XLogDumpDisplayRecord(XLogDumpConfig *config, XLogReaderState *record)
 			putchar('\n');
 		}
 	}
+
+	if ((info & ~XLR_INFO_MASK) == XLOG_LOGICAL_MESSAGE) {
+		putchar('\n');
+    xl_logical_message *xlrec = (xl_logical_message *) record;
+		char	   *message = xlrec->message + xlrec->prefix_size;
+
+		Assert(prefix[xlrec->prefix_size] != '\0');
+    printf("Message Contents: %.*s", xlrec->message_size - xlrec->prefix_size, message);
+		putchar('\n');
+  }
 }
 
 /*
