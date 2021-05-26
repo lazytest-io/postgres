@@ -461,109 +461,116 @@ XLogDumpDisplayRecord(XLogDumpConfig *config, XLogReaderState *record)
 	uint8		info = XLogRecGetInfo(record);
 	XLogRecPtr	xl_prev = XLogRecGetPrev(record);
 	StringInfoData s;
+  char       *rec_data;
+  xl_logical_message *xlrec;
+  char *message;
 
-	XLogDumpRecordLen(record, &rec_len, &fpi_len);
+	// XLogDumpRecordLen(record, &rec_len, &fpi_len);
 
-	printf("rmgr: %-11s len (rec/tot): %6u/%6u, tx: %10u, lsn: %X/%08X, prev %X/%08X, ",
-		   desc->rm_name,
-		   rec_len, XLogRecGetTotalLen(record),
-		   XLogRecGetXid(record),
-		   (uint32) (record->ReadRecPtr >> 32), (uint32) record->ReadRecPtr,
-		   (uint32) (xl_prev >> 32), (uint32) xl_prev);
+	// printf("rmgr: %-11s len (rec/tot): %6u/%6u, tx: %10u, lsn: %X/%08X, prev %X/%08X, ",
+	// 	   desc->rm_name,
+	// 	   rec_len, XLogRecGetTotalLen(record),
+	// 	   XLogRecGetXid(record),
+	// 	   (uint32) (record->ReadRecPtr >> 32), (uint32) record->ReadRecPtr,
+	// 	   (uint32) (xl_prev >> 32), (uint32) xl_prev);
 
-	id = desc->rm_identify(info);
-	if (id == NULL)
-		printf("desc: UNKNOWN (%x) ", info & ~XLR_INFO_MASK);
-	else
-		printf("desc: %s ", id);
+	// id = desc->rm_identify(info);
+	// if (id == NULL)
+	// 	printf("desc: UNKNOWN (%x) ", info & ~XLR_INFO_MASK);
+	// else
+	// 	printf("desc: %s ", id);
 
-	initStringInfo(&s);
-	desc->rm_desc(&s, record);
-	printf("%s", s.data);
-	pfree(s.data);
+	// initStringInfo(&s);
+	// desc->rm_desc(&s, record);
+	// printf("%s", s.data);
+	// pfree(s.data);
 
-	if (!config->bkp_details)
-	{
-		/* print block references (short format) */
-		for (block_id = 0; block_id <= record->max_block_id; block_id++)
-		{
-			if (!XLogRecHasBlockRef(record, block_id))
-				continue;
+	// if (!config->bkp_details)
+	// {
+	// 	/* print block references (short format) */
+	// 	for (block_id = 0; block_id <= record->max_block_id; block_id++)
+	// 	{
+	// 		if (!XLogRecHasBlockRef(record, block_id))
+	// 			continue;
 
-			XLogRecGetBlockTag(record, block_id, &rnode, &forknum, &blk);
-			if (forknum != MAIN_FORKNUM)
-				printf(", blkref #%u: rel %u/%u/%u fork %s blk %u",
-					   block_id,
-					   rnode.spcNode, rnode.dbNode, rnode.relNode,
-					   forkNames[forknum],
-					   blk);
-			else
-				printf(", blkref #%u: rel %u/%u/%u blk %u",
-					   block_id,
-					   rnode.spcNode, rnode.dbNode, rnode.relNode,
-					   blk);
-			if (XLogRecHasBlockImage(record, block_id))
-			{
-				if (XLogRecBlockImageApply(record, block_id))
-					printf(" FPW");
-				else
-					printf(" FPW for WAL verification");
-			}
-		}
-		putchar('\n');
-	}
-	else
-	{
-		/* print block references (detailed format) */
-		putchar('\n');
-		for (block_id = 0; block_id <= record->max_block_id; block_id++)
-		{
-			if (!XLogRecHasBlockRef(record, block_id))
-				continue;
+	// 		XLogRecGetBlockTag(record, block_id, &rnode, &forknum, &blk);
+	// 		if (forknum != MAIN_FORKNUM)
+	// 			printf(", blkref #%u: rel %u/%u/%u fork %s blk %u",
+	// 				   block_id,
+	// 				   rnode.spcNode, rnode.dbNode, rnode.relNode,
+	// 				   forkNames[forknum],
+	// 				   blk);
+	// 		else
+	// 			printf(", blkref #%u: rel %u/%u/%u blk %u",
+	// 				   block_id,
+	// 				   rnode.spcNode, rnode.dbNode, rnode.relNode,
+	// 				   blk);
+	// 		if (XLogRecHasBlockImage(record, block_id))
+	// 		{
+	// 			if (XLogRecBlockImageApply(record, block_id))
+	// 				printf(" FPW");
+	// 			else
+	// 				printf(" FPW for WAL verification");
+	// 		}
+	// 	}
+	// 	putchar('\n');
+	// }
+	// else
+	// {
+	// 	/* print block references (detailed format) */
+	// 	putchar('\n');
+	// 	for (block_id = 0; block_id <= record->max_block_id; block_id++)
+	// 	{
+	// 		if (!XLogRecHasBlockRef(record, block_id))
+	// 			continue;
 
-			XLogRecGetBlockTag(record, block_id, &rnode, &forknum, &blk);
-			printf("\tblkref #%u: rel %u/%u/%u fork %s blk %u",
-				   block_id,
-				   rnode.spcNode, rnode.dbNode, rnode.relNode,
-				   forkNames[forknum],
-				   blk);
-			if (XLogRecHasBlockImage(record, block_id))
-			{
-				if (record->blocks[block_id].bimg_info &
-					BKPIMAGE_IS_COMPRESSED)
-				{
-					printf(" (FPW%s); hole: offset: %u, length: %u, "
-						   "compression saved: %u",
-						   XLogRecBlockImageApply(record, block_id) ?
-						   "" : " for WAL verification",
-						   record->blocks[block_id].hole_offset,
-						   record->blocks[block_id].hole_length,
-						   BLCKSZ -
-						   record->blocks[block_id].hole_length -
-						   record->blocks[block_id].bimg_len);
-				}
-				else
-				{
-					printf(" (FPW%s); hole: offset: %u, length: %u",
-						   XLogRecBlockImageApply(record, block_id) ?
-						   "" : " for WAL verification",
-						   record->blocks[block_id].hole_offset,
-						   record->blocks[block_id].hole_length);
-				}
-			}
-			putchar('\n');
-		}
-	}
+	// 		XLogRecGetBlockTag(record, block_id, &rnode, &forknum, &blk);
+	// 		printf("\tblkref #%u: rel %u/%u/%u fork %s blk %u",
+	// 			   block_id,
+	// 			   rnode.spcNode, rnode.dbNode, rnode.relNode,
+	// 			   forkNames[forknum],
+	// 			   blk);
+	// 		if (XLogRecHasBlockImage(record, block_id))
+	// 		{
+	// 			if (record->blocks[block_id].bimg_info &
+	// 				BKPIMAGE_IS_COMPRESSED)
+	// 			{
+	// 				printf(" (FPW%s); hole: offset: %u, length: %u, "
+	// 					   "compression saved: %u",
+	// 					   XLogRecBlockImageApply(record, block_id) ?
+	// 					   "" : " for WAL verification",
+	// 					   record->blocks[block_id].hole_offset,
+	// 					   record->blocks[block_id].hole_length,
+	// 					   BLCKSZ -
+	// 					   record->blocks[block_id].hole_length -
+	// 					   record->blocks[block_id].bimg_len);
+	// 			}
+	// 			else
+	// 			{
+	// 				printf(" (FPW%s); hole: offset: %u, length: %u",
+	// 					   XLogRecBlockImageApply(record, block_id) ?
+	// 					   "" : " for WAL verification",
+	// 					   record->blocks[block_id].hole_offset,
+	// 					   record->blocks[block_id].hole_length);
+	// 			}
+	// 		}
+	// 		putchar('\n');
+	// 	}
+	// }
 
-	if ((info & ~XLR_INFO_MASK) == XLOG_LOGICAL_MESSAGE) {
-		putchar('\n');
-    xl_logical_message *xlrec = (xl_logical_message *) record;
-		char	   *message = xlrec->message + xlrec->prefix_size;
+if (strcmp(desc->rm_name, "LogicalMessage") == 0) {
+  rec_data = XLogRecGetData(record);
+  xlrec = (xl_logical_message *) rec_data;
+  message = xlrec->message + xlrec->prefix_size;
+  printf("{\"transaction_id\": %10u,", XLogRecGetXid(record));
+  printf("\"transactional\": %s", xlrec->transactional ? "true" : "false");
+  printf("\"lsn\": %X/%08X,", (uint32) (record->ReadRecPtr >> 32), (uint32) record->ReadRecPtr);
+  printf("\"message\": %.*s}", xlrec->message_size, message);
+  putchar('\n');
+}
+}
 
-		Assert(prefix[xlrec->prefix_size] != '\0');
-    printf("Message Contents: %.*s", xlrec->message_size - xlrec->prefix_size, message);
-		putchar('\n');
-  }
+/*
 }
 
 /*
