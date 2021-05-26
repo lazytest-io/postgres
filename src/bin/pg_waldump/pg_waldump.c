@@ -562,7 +562,7 @@ XLogDumpDisplayRecord(XLogDumpConfig *config, XLogReaderState *record)
     rec_data = XLogRecGetData(record);
     xlrec = (xl_logical_message *) rec_data;
     message = xlrec->message + xlrec->prefix_size;
-    printf("{\"transactionId\": %10u,", XLogRecGetXid(record));
+    printf("{\"transactionId\": %u,", XLogRecGetXid(record));
     printf("\"transactional\": %s, ", xlrec->transactional ? "true" : "false");
     printf("\"lsn\": \"%X/%08X\", ", (uint32) (record->ReadRecPtr >> 32), (uint32) record->ReadRecPtr);
     printf("\"message\": %.*s}", xlrec->message_size, message);
